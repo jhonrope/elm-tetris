@@ -21,7 +21,7 @@ type Piece
 
 
 type alias Position =
-    Int
+    ( Int, Int )
 
 
 type alias Board =
@@ -33,6 +33,7 @@ type alias Model =
     , currentTick : Float
     , currentPosition : Position
     , boardHeight : Int
+    , boardWidth : Int
     , board : Board
     }
 
@@ -43,24 +44,32 @@ type Msg
     | KeyMsg Keyboard.KeyCode
 
 
+updatePosition : Int -> Int -> Position -> Position
+updatePosition x y pos =
+    ( fst pos + x, snd pos + y )
+
+
 calculateNewData : Model -> ( Position, Board )
 calculateNewData model =
     let
+        ( x, y ) =
+            model.currentPosition
+
         ( newCurrentPos, newBoard ) =
             if
-                collisionByBorder model.boardHeight (model.currentPosition)
-                    || collisionByOccupied (model.currentPosition + 1) model.board
+                collisionByBorder model.boardHeight model.currentPosition
+                    || collisionByOccupied (updatePosition 1 0 model.currentPosition) model.board
             then
-                ( 1
+                ( ( 1, 1 )
                 , model.board
                     |> Dict.insert model.currentPosition True
-                    |> Dict.remove (model.currentPosition - 1)
+                    |> Dict.remove (updatePosition -1 0 model.currentPosition)
                 )
             else
-                ( model.currentPosition + 1
+                ( (updatePosition 1 0 model.currentPosition)
                 , model.board
                     |> Dict.insert model.currentPosition True
-                    |> Dict.remove (model.currentPosition - 1)
+                    |> Dict.remove (updatePosition -1 0 model.currentPosition)
                 )
     in
         ( newCurrentPos, newBoard )
@@ -113,7 +122,7 @@ update msg model =
 
 collisionByBorder : Int -> Position -> Bool
 collisionByBorder maxPos pos =
-    pos == maxPos
+    fst pos == maxPos
 
 
 collisionByOccupied : Position -> Board -> Bool
@@ -149,18 +158,21 @@ tablero model =
 squareStyle : Position -> List ( String, String )
 squareStyle pos =
     let
+        ( x, y ) =
+            pos
+
         blockSize =
             20
 
         left =
-            30 + (pos * blockSize)
+            30 + (y * blockSize)
 
         top =
-            100 + (pos * blockSize)
+            100 + (x * blockSize)
     in
         [ ( "position", "absolute" )
-          --        , ( "left", toString left ++ "px" )
-        , ( "left", "30px" )
+        , ( "left", toString left ++ "px" )
+          -- , ( "left", "30px" )
         , ( "top", toString top ++ "px" )
         , ( "height", toString blockSize ++ "px" )
         , ( "width", toString blockSize ++ "px" )
@@ -176,13 +188,17 @@ drawSquare ( pos, bool ) =
 init =
     let
         boardHeight =
+            20
+
+        boardWidth =
             10
 
         model =
             { currentPiece = I
             , currentTick = 0
-            , currentPosition = 1
+            , currentPosition = ( 1, 1 )
             , boardHeight = boardHeight
+            , boardWidth = boardWidth
             , board = Dict.empty
             }
     in
