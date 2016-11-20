@@ -73,8 +73,32 @@ movePieceLeft model =
         ( newCurrentPos, newBoard )
 
 
-calculateNewData : Model -> ( Position, Board )
-calculateNewData model =
+movePieceRight : Model -> ( Position, Board )
+movePieceRight model =
+    let
+        ( x, y ) =
+            (updatePosition 1 0 model.currentPosition)
+
+        ( newCurrentPos, newBoard ) =
+            if
+                collisionByBorderRight model.boardWidth model.currentPosition
+                    || collisionByOccupied ( x, y ) model.board
+            then
+                ( model.currentPosition
+                , model.board
+                )
+            else
+                ( ( x, y )
+                , model.board
+                    |> Dict.insert ( x, y ) True
+                    |> Dict.remove model.currentPosition
+                )
+    in
+        ( newCurrentPos, newBoard )
+
+
+movePieceDown : Model -> ( Position, Board )
+movePieceDown model =
     let
         ( x, y ) =
             (updatePosition 0 1 model.currentPosition)
@@ -98,6 +122,22 @@ calculateNewData model =
         ( newCurrentPos, newBoard )
 
 
+calculate : (Model -> ( Position, Board )) -> Model -> ( Model, Cmd Msg )
+calculate fn model =
+    let
+        _ =
+            log "s" model.currentPosition
+
+        ( newCurrentPos, newBoard ) =
+            fn model
+    in
+        { model
+            | currentPosition = newCurrentPos
+            , board = newBoard
+        }
+            ! []
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -109,69 +149,37 @@ update msg model =
                 _ =
                     log "tick" model.currentPosition
 
-                ( newCurrentPos, newBoard ) =
-                    calculateNewData model
+                ( model, cmd ) =
+                    calculate movePieceDown model
             in
                 { model
                     | currentTick = model.currentTick + 1
-                    , currentPosition = newCurrentPos
-                    , board = newBoard
                 }
-                    ! []
+                    ! [ cmd ]
 
         KeyMsg code ->
             case Char.fromCode code of
                 's' ->
-                    let
-                        _ =
-                            log "s" model.currentPosition
-
-                        ( newCurrentPos, newBoard ) =
-                            calculateNewData model
-                    in
-                        { model
-                            | currentPosition = newCurrentPos
-                            , board = newBoard
-                        }
-                            ! []
+                    calculate movePieceDown model
 
                 'a' ->
-                    let
-                        ( newCurrentPos, newBoard ) =
-                            movePieceLeft model
-                    in
-                        { model
-                            | currentPosition = newCurrentPos
-                            , board = newBoard
-                        }
-                            ! []
+                    calculate movePieceLeft model
 
-                'w' ->
-                    let
-                        _ =
-                            log "w" model.currentPosition
-
-                        ( newCurrentPos, newBoard ) =
-                            calculateNewData model
-                    in
-                        { model
-                            | currentTick = model.currentTick + 1
-                            , currentPosition = newCurrentPos
-                            , board = newBoard
-                        }
-                            ! []
+                'd' ->
+                    calculate movePieceRight model
 
                 _ ->
-                    let
-                        _ =
-                            log "tecla" code
-                    in
-                        model ! []
+                    model ! []
 
 
 collisionByBorderLeft : Position -> Bool
 collisionByBorderLeft pos =
     fst pos <= 1
+
+
+collisionByBorderRight : Int -> Position -> Bool
+collisionByBorderRight rightBorder pos =
+    fst pos >= rightBorder
 
 
 collisionByBorder : Int -> Position -> Bool
