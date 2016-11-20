@@ -49,27 +49,50 @@ updatePosition x y pos =
     ( fst pos + x, snd pos + y )
 
 
+movePieceLeft : Model -> ( Position, Board )
+movePieceLeft model =
+    let
+        ( x, y ) =
+            (updatePosition -1 0 model.currentPosition)
+
+        ( newCurrentPos, newBoard ) =
+            if
+                collisionByBorderLeft model.currentPosition
+                    || collisionByOccupied ( x, y ) model.board
+            then
+                ( model.currentPosition
+                , model.board
+                )
+            else
+                ( ( x, y )
+                , model.board
+                    |> Dict.insert ( x, y ) True
+                    |> Dict.remove model.currentPosition
+                )
+    in
+        ( newCurrentPos, newBoard )
+
+
 calculateNewData : Model -> ( Position, Board )
 calculateNewData model =
     let
         ( x, y ) =
-            model.currentPosition
+            (updatePosition 0 1 model.currentPosition)
 
         ( newCurrentPos, newBoard ) =
             if
                 collisionByBorder model.boardHeight model.currentPosition
-                    || collisionByOccupied (updatePosition 1 0 model.currentPosition) model.board
+                    || collisionByOccupied ( x, y ) model.board
             then
-                ( ( 1, 1 )
+                ( ( 5, 1 )
                 , model.board
-                    |> Dict.insert model.currentPosition True
-                    |> Dict.remove (updatePosition -1 0 model.currentPosition)
+                    |> Dict.insert ( 5, 1 ) True
                 )
             else
-                ( (updatePosition 1 0 model.currentPosition)
+                ( ( x, y )
                 , model.board
-                    |> Dict.insert model.currentPosition True
-                    |> Dict.remove (updatePosition -1 0 model.currentPosition)
+                    |> Dict.insert ( x, y ) True
+                    |> Dict.remove model.currentPosition
                 )
     in
         ( newCurrentPos, newBoard )
@@ -84,7 +107,7 @@ update msg model =
         Tick time ->
             let
                 _ =
-                    log "pato" model.currentPosition
+                    log "tick" model.currentPosition
 
                 ( newCurrentPos, newBoard ) =
                     calculateNewData model
@@ -101,13 +124,39 @@ update msg model =
                 's' ->
                     let
                         _ =
-                            log "pato" model.currentPosition
+                            log "s" model.currentPosition
 
                         ( newCurrentPos, newBoard ) =
                             calculateNewData model
                     in
                         { model
                             | currentPosition = newCurrentPos
+                            , board = newBoard
+                        }
+                            ! []
+
+                'a' ->
+                    let
+                        ( newCurrentPos, newBoard ) =
+                            movePieceLeft model
+                    in
+                        { model
+                            | currentPosition = newCurrentPos
+                            , board = newBoard
+                        }
+                            ! []
+
+                'w' ->
+                    let
+                        _ =
+                            log "w" model.currentPosition
+
+                        ( newCurrentPos, newBoard ) =
+                            calculateNewData model
+                    in
+                        { model
+                            | currentTick = model.currentTick + 1
+                            , currentPosition = newCurrentPos
                             , board = newBoard
                         }
                             ! []
@@ -120,9 +169,14 @@ update msg model =
                         model ! []
 
 
+collisionByBorderLeft : Position -> Bool
+collisionByBorderLeft pos =
+    fst pos <= 1
+
+
 collisionByBorder : Int -> Position -> Bool
 collisionByBorder maxPos pos =
-    fst pos == maxPos
+    snd pos == maxPos
 
 
 collisionByOccupied : Position -> Board -> Bool
@@ -140,7 +194,7 @@ view model =
     div []
         [ text <| toString model.currentTick
         , text <| toString model.board
-        , table [] [ tablero model ]
+        , tablero model
         ]
 
 
@@ -152,7 +206,7 @@ tablero model =
                 |> Dict.toList
                 |> List.map drawSquare
     in
-        td [] tablero
+        div [] tablero
 
 
 squareStyle : Position -> List ( String, String )
@@ -165,10 +219,10 @@ squareStyle pos =
             20
 
         left =
-            30 + (y * blockSize)
+            30 + (x * blockSize)
 
         top =
-            100 + (x * blockSize)
+            100 + (y * blockSize)
     in
         [ ( "position", "absolute" )
         , ( "left", toString left ++ "px" )
@@ -188,7 +242,7 @@ drawSquare ( pos, bool ) =
 init =
     let
         boardHeight =
-            20
+            5
 
         boardWidth =
             10
@@ -196,10 +250,10 @@ init =
         model =
             { currentPiece = I
             , currentTick = 0
-            , currentPosition = ( 1, 1 )
+            , currentPosition = ( 5, 1 )
             , boardHeight = boardHeight
             , boardWidth = boardWidth
-            , board = Dict.empty
+            , board = Dict.insert ( 5, 1 ) True Dict.empty
             }
     in
         model ! []
