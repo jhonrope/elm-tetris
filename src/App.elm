@@ -8,6 +8,7 @@ import Dict exposing (..)
 import Debug exposing (..)
 import Keyboard
 import Char
+import Random exposing (..)
 
 
 type Piece
@@ -37,13 +38,14 @@ type alias Board =
 
 
 type alias Model =
-    { currentPiece : Piece
+    { piece : Piece
     , currentTick : Float
     , currentPosition : Position
     , boardHeight : Int
     , boardWidth : Int
     , board : Board
     , piecePosition : PiecePosition
+    , nextPiece : Piece
     }
 
 
@@ -51,6 +53,42 @@ type Msg
     = NoOp
     | Tick Time
     | KeyMsg Keyboard.KeyCode
+    | NextPiece Piece
+
+
+generatePiece : Cmd Msg
+generatePiece =
+    Random.int 1 7
+        |> Random.map randomPiece
+        |> Random.generate NextPiece
+
+
+randomPiece : Int -> Piece
+randomPiece int =
+    case int of
+        1 ->
+            O
+
+        2 ->
+            J
+
+        3 ->
+            L
+
+        4 ->
+            S
+
+        5 ->
+            Z
+
+        6 ->
+            I
+
+        7 ->
+            T
+
+        _ ->
+            O
 
 
 updatePosition : Int -> Int -> Position -> Position
@@ -117,7 +155,7 @@ listToPiecePosition list =
             PiecePosition p1 p2 p3 p4
 
         _ ->
-            newPiece
+            newPiece L
 
 
 piecePositionToList : PiecePosition -> List Position
@@ -138,13 +176,19 @@ movePieceDown model =
         ( newCurrentPosition model nextPos, newBoard model nextPos )
 
 
-newMovePieceDown : Model -> ( PiecePosition, Board )
+newMovePieceDown : Model -> ( Model, Cmd Msg )
 newMovePieceDown model =
     let
         nextPos =
-            log "newMovePieceDown" (updatePiecePosition 0 1 model.piecePosition)
+            updatePiecePosition 0 1 model.piecePosition
+
+        ( mdl, cmd ) =
+            newBoardPiecePosition model nextPos
+
+        newPos =
+            newPiecePosition model nextPos
     in
-        ( newPiecePosition model nextPos, log "newBoardPiecePosition" <| newBoardPiecePosition model nextPos )
+        { mdl | piecePosition = newPos } ! [ cmd ]
 
 
 newCurrentPosition : Model -> Position -> Position
@@ -162,7 +206,7 @@ newPiecePosition : Model -> PiecePosition -> PiecePosition
 newPiecePosition model piecePos =
     let
         list =
-            piecePositionToList piecePos
+            piecePositionToList model.piecePosition
 
         newPiecePositionList =
             model.piecePosition
@@ -176,16 +220,16 @@ newPiecePosition model piecePos =
             newPiecePositionList |> List.any (\pos -> collisionByOccupied pos model.board)
     in
         if collideWithBorder || collideWithOther then
-            newPiece
+            newPiece model.piece
         else
             newPiecePositionList |> listToPiecePosition
 
 
-newBoardPiecePosition : Model -> PiecePosition -> Board
+newBoardPiecePosition : Model -> PiecePosition -> ( Model, Cmd Msg )
 newBoardPiecePosition model piecePos =
     let
         list =
-            piecePositionToList piecePos
+            piecePositionToList model.piecePosition
 
         newPiecePositionList =
             model.piecePosition
@@ -199,12 +243,15 @@ newBoardPiecePosition model piecePos =
             newPiecePositionList |> List.any (\pos -> collisionByOccupied pos model.board)
     in
         if collideWithBorder || collideWithOther then
-            model.board
-                |> insertPiece newPiece
+            { model
+                | board =
+                    (model.board |> insertPiece model.piecePosition)
+                , piece = model.nextPiece
+                , piecePosition = newPiece model.nextPiece
+            }
+                ! [ generatePiece ]
         else
-            model.board
-                |> insertPiece (listToPiecePosition newPiecePositionList)
-                |> removePiece model.piecePosition
+            model ! []
 
 
 piecePositionToDict : PiecePosition -> Board
@@ -221,14 +268,7 @@ insertPiece piecePos board =
         positions =
             piecePos |> piecePositionToDict
     in
-        log "insertPiece" (board |> Dict.union positions)
-
-
-removePiece : PiecePosition -> Board -> Board
-removePiece piecePos board =
-    piecePos
-        |> piecePositionToList
-        |> List.foldl (Dict.remove) board
+        board |> Dict.union positions
 
 
 newBoard : Model -> Position -> Board
@@ -258,17 +298,13 @@ calculate fn model =
             ! []
 
 
-calculatePiecePosition : (Model -> ( PiecePosition, Board )) -> Model -> ( Model, Cmd Msg )
-calculatePiecePosition fn model =
+calculatePiecePosition : (Model -> ( Model, Cmd Msg )) -> Model -> ( Model, Cmd Msg )
+calculatePiecePosition fn mdl =
     let
-        ( newCurrentPos, newBoard ) =
-            fn model
+        ( model, cmd ) =
+            fn mdl
     in
-        { model
-            | piecePosition = newCurrentPos
-            , board = newBoard
-        }
-            ! []
+        model ! [ cmd ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -301,6 +337,13 @@ update msg model =
                 _ ->
                     model ! []
 
+        NextPiece piece ->
+            let
+                _ =
+                    log "pieces" ( model.piece, model.nextPiece, piece )
+            in
+                { model | nextPiece = piece } ! []
+
 
 collisionByBorderLeft : Position -> Bool
 collisionByBorderLeft pos =
@@ -332,6 +375,7 @@ view model =
     div []
         [ text <| toString model.currentTick
         , text <| toString model.board
+        , div [] [ text <| toString model.nextPiece ]
         , tablero model
         ]
 
@@ -339,9 +383,15 @@ view model =
 tablero : Model -> Html Msg
 tablero model =
     let
+        piece =
+            model.piecePosition
+                |> piecePositionToList
+                |> List.map (\pos -> ( pos, True ))
+
         tablero =
             model.board
                 |> Dict.toList
+                |> List.append piece
                 |> List.map drawSquare
     in
         div [] tablero
@@ -351,7 +401,7 @@ squareStyle : Position -> List ( String, String )
 squareStyle pos =
     let
         ( x, y ) =
-            pos
+            ( Basics.max 1 <| fst pos, Basics.max 1 <| snd pos )
 
         blockSize =
             20
@@ -364,7 +414,6 @@ squareStyle pos =
     in
         [ ( "position", "absolute" )
         , ( "left", toString left ++ "px" )
-          -- , ( "left", "30px" )
         , ( "top", toString top ++ "px" )
         , ( "height", toString blockSize ++ "px" )
         , ( "width", toString blockSize ++ "px" )
@@ -377,13 +426,69 @@ drawSquare ( pos, bool ) =
     div [ style <| squareStyle pos ] []
 
 
-newPiece : PiecePosition
-newPiece =
-    { p1 = ( 1, 1 )
-    , p2 = ( 2, 1 )
-    , p3 = ( 3, 1 )
-    , p4 = ( 4, 1 )
-    }
+
+{- }
+
+   |
+   |
+   | S
+   | Z
+   |
+   | T
+-}
+
+
+newPiece : Piece -> PiecePosition
+newPiece piece =
+    case piece of
+        I ->
+            { p1 = ( 5, -2 )
+            , p2 = ( 5, -1 )
+            , p3 = ( 5, 0 )
+            , p4 = ( 5, 1 )
+            }
+
+        O ->
+            { p1 = ( 5, 1 )
+            , p2 = ( 5, 0 )
+            , p3 = ( 6, 1 )
+            , p4 = ( 6, 0 )
+            }
+
+        J ->
+            { p1 = ( 5, 1 )
+            , p2 = ( 6, -1 )
+            , p3 = ( 6, 0 )
+            , p4 = ( 6, 1 )
+            }
+
+        L ->
+            { p1 = ( 5, -1 )
+            , p2 = ( 5, 0 )
+            , p3 = ( 5, 1 )
+            , p4 = ( 6, 1 )
+            }
+
+        S ->
+            { p1 = ( 4, 1 )
+            , p2 = ( 5, 1 )
+            , p3 = ( 5, 0 )
+            , p4 = ( 6, 0 )
+            }
+
+        Z ->
+            { p1 = ( 4, 0 )
+            , p2 = ( 5, 0 )
+            , p3 = ( 5, 1 )
+            , p4 = ( 6, 1 )
+            }
+
+        T ->
+            { p1 = ( 5, -1 )
+            , p2 = ( 5, 0 )
+            , p3 = ( 5, 1 )
+            , p4 = ( 6, 0 )
+            }
 
 
 init =
@@ -395,23 +500,26 @@ init =
             10
 
         piecePosition =
-            { p1 = ( 1, 0 )
-            , p2 = ( 2, 0 )
-            , p3 = ( 3, 0 )
-            , p4 = ( 4, 0 )
-            }
+            newPiece piece
+
+        piece =
+            T
+
+        nextPiece =
+            I
 
         model =
-            { currentPiece = I
+            { piece = piece
             , currentTick = 0
             , currentPosition = ( 5, 1 )
             , boardHeight = boardHeight
             , boardWidth = boardWidth
             , board = Dict.empty
             , piecePosition = piecePosition
+            , nextPiece = nextPiece
             }
     in
-        model ! []
+        model ! [ generatePiece ]
 
 
 main : Program Never
