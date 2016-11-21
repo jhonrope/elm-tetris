@@ -58,6 +58,14 @@ updatePosition x y pos =
     ( fst pos + x, snd pos + y )
 
 
+updatePiecePosition : Int -> Int -> PiecePosition -> PiecePosition
+updatePiecePosition x y piecePos =
+    piecePos
+        |> piecePositionToList
+        |> List.map (updatePosition x y)
+        |> listToPiecePosition
+
+
 movePieceLeft : Model -> ( Position, Board )
 movePieceLeft model =
     let
@@ -126,29 +134,17 @@ movePieceDown model =
     let
         nextPos =
             (updatePosition 0 1 model.currentPosition)
-
-        {--
-        list =
-            piecePositionToList model.piecePosition
-
-        newPiecePosition : Dict Position Bool
-        newPiecePosition =
-            list
-                |> List.map (updatePosition 0 1)
-                |> List.map (\pos -> ( pos, True ))
-                |> Dict.fromList
-
-        collideWithBorder =
-            list |> List.any (collisionByBorder model.boardHeight)
-
-        collideWithOther =
-            list |> List.any (\pos -> collisionByOccupied pos model.board)
-
-        ( b, o ) =
-            log "col" ( collideWithBorder, collideWithOther )
--}
     in
         ( newCurrentPosition model nextPos, newBoard model nextPos )
+
+
+newMovePieceDown : Model -> ( PiecePosition, Board )
+newMovePieceDown model =
+    let
+        nextPos =
+            log "newMovePieceDown" (updatePiecePosition 0 1 model.piecePosition)
+    in
+        ( newPiecePosition model nextPos, log "newBoardPiecePosition" <| newBoardPiecePosition model nextPos )
 
 
 newCurrentPosition : Model -> Position -> Position
@@ -160,6 +156,79 @@ newCurrentPosition model nextPosition =
         ( 5, 1 )
     else
         nextPosition
+
+
+newPiecePosition : Model -> PiecePosition -> PiecePosition
+newPiecePosition model piecePos =
+    let
+        list =
+            piecePositionToList piecePos
+
+        newPiecePositionList =
+            model.piecePosition
+                |> piecePositionToList
+                |> List.map (updatePosition 0 1)
+
+        collideWithBorder =
+            list |> List.any (collisionByBorder model.boardHeight)
+
+        collideWithOther =
+            newPiecePositionList |> List.any (\pos -> collisionByOccupied pos model.board)
+    in
+        if collideWithBorder || collideWithOther then
+            newPiece
+        else
+            newPiecePositionList |> listToPiecePosition
+
+
+newBoardPiecePosition : Model -> PiecePosition -> Board
+newBoardPiecePosition model piecePos =
+    let
+        list =
+            piecePositionToList piecePos
+
+        newPiecePositionList =
+            model.piecePosition
+                |> piecePositionToList
+                |> List.map (updatePosition 0 1)
+
+        collideWithBorder =
+            list |> List.any (collisionByBorder model.boardHeight)
+
+        collideWithOther =
+            newPiecePositionList |> List.any (\pos -> collisionByOccupied pos model.board)
+    in
+        if collideWithBorder || collideWithOther then
+            model.board
+                |> insertPiece newPiece
+        else
+            model.board
+                |> insertPiece (listToPiecePosition newPiecePositionList)
+                |> removePiece model.piecePosition
+
+
+piecePositionToDict : PiecePosition -> Board
+piecePositionToDict piecePos =
+    piecePos
+        |> piecePositionToList
+        |> List.map (\pos -> ( pos, True ))
+        |> Dict.fromList
+
+
+insertPiece : PiecePosition -> Board -> Board
+insertPiece piecePos board =
+    let
+        positions =
+            piecePos |> piecePositionToDict
+    in
+        log "insertPiece" (board |> Dict.union positions)
+
+
+removePiece : PiecePosition -> Board -> Board
+removePiece piecePos board =
+    piecePos
+        |> piecePositionToList
+        |> List.foldl (Dict.remove) board
 
 
 newBoard : Model -> Position -> Board
@@ -189,6 +258,19 @@ calculate fn model =
             ! []
 
 
+calculatePiecePosition : (Model -> ( PiecePosition, Board )) -> Model -> ( Model, Cmd Msg )
+calculatePiecePosition fn model =
+    let
+        ( newCurrentPos, newBoard ) =
+            fn model
+    in
+        { model
+            | piecePosition = newCurrentPos
+            , board = newBoard
+        }
+            ! []
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -201,14 +283,14 @@ update msg model =
                     log "tick" model.currentPosition
 
                 ( model, cmd ) =
-                    calculate movePieceDown model
+                    calculatePiecePosition newMovePieceDown model
             in
                 { model | currentTick = model.currentTick + 1 } ! [ cmd ]
 
         KeyMsg code ->
             case Char.fromCode code of
                 's' ->
-                    calculate movePieceDown model
+                    calculatePiecePosition newMovePieceDown model
 
                 'a' ->
                     calculate movePieceLeft model
@@ -297,10 +379,10 @@ drawSquare ( pos, bool ) =
 
 newPiece : PiecePosition
 newPiece =
-    { p1 = ( 1, 0 )
-    , p2 = ( 2, 0 )
-    , p3 = ( 3, 0 )
-    , p4 = ( 4, 0 )
+    { p1 = ( 1, 1 )
+    , p2 = ( 2, 1 )
+    , p3 = ( 3, 1 )
+    , p4 = ( 4, 1 )
     }
 
 
@@ -325,7 +407,7 @@ init =
             , currentPosition = ( 5, 1 )
             , boardHeight = boardHeight
             , boardWidth = boardWidth
-            , board = Dict.insert ( 5, 1 ) True Dict.empty
+            , board = Dict.empty
             , piecePosition = piecePosition
             }
     in
