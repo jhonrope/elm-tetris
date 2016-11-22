@@ -104,50 +104,6 @@ updatePiecePosition x y piecePos =
         |> listToPiecePosition
 
 
-movePieceLeft : Model -> ( Position, Board )
-movePieceLeft model =
-    let
-        ( x, y ) =
-            (updatePosition -1 0 model.currentPosition)
-
-        ( newCurrentPos, newBoard ) =
-            if
-                collisionByBorderLeft model.currentPosition
-                    || collisionByOccupied ( x, y ) model.board
-            then
-                ( model.currentPosition, model.board )
-            else
-                ( ( x, y )
-                , model.board
-                    |> Dict.insert ( x, y ) True
-                    |> Dict.remove model.currentPosition
-                )
-    in
-        ( newCurrentPos, newBoard )
-
-
-movePieceRight : Model -> ( Position, Board )
-movePieceRight model =
-    let
-        ( x, y ) =
-            (updatePosition 1 0 model.currentPosition)
-
-        ( newCurrentPos, newBoard ) =
-            if
-                collisionByBorderRight model.boardWidth model.currentPosition
-                    || collisionByOccupied ( x, y ) model.board
-            then
-                ( model.currentPosition, model.board )
-            else
-                ( ( x, y )
-                , model.board
-                    |> Dict.insert ( x, y ) True
-                    |> Dict.remove model.currentPosition
-                )
-    in
-        ( newCurrentPos, newBoard )
-
-
 listToPiecePosition : List Position -> PiecePosition
 listToPiecePosition list =
     case list of
@@ -165,15 +121,6 @@ piecePositionToList piecePos =
     , piecePos.p3
     , piecePos.p4
     ]
-
-
-movePieceDown : Model -> ( Position, Board )
-movePieceDown model =
-    let
-        nextPos =
-            (updatePosition 0 1 model.currentPosition)
-    in
-        ( newCurrentPosition model nextPos, newBoard model nextPos )
 
 
 newMovePieceDown : Model -> ( Model, Cmd Msg )
@@ -219,17 +166,6 @@ newMovePieceRight model =
             newPiecePosition model checkCollisionRight (updatePiecePosition 1 0) model.piecePosition
     in
         { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
-
-
-newCurrentPosition : Model -> Position -> Position
-newCurrentPosition model nextPosition =
-    if
-        collisionByBorder model.boardHeight model.currentPosition
-            || collisionByOccupied nextPosition model.board
-    then
-        ( 5, 1 )
-    else
-        nextPosition
 
 
 checkCollisitionWithOther : (Position -> Position) -> Board -> PiecePosition -> Bool
@@ -330,33 +266,6 @@ insertPiece piecePos board =
             piecePos |> piecePositionToDict
     in
         board |> Dict.union positions
-
-
-newBoard : Model -> Position -> Board
-newBoard model nextPos =
-    if
-        collisionByBorder model.boardHeight model.currentPosition
-            || collisionByOccupied nextPos model.board
-    then
-        model.board
-            |> Dict.insert ( 5, 1 ) True
-    else
-        model.board
-            |> Dict.insert nextPos True
-            |> Dict.remove model.currentPosition
-
-
-calculate : (Model -> ( Position, Board )) -> Model -> ( Model, Cmd Msg )
-calculate fn model =
-    let
-        ( newCurrentPos, newBoard ) =
-            fn model
-    in
-        { model
-            | currentPosition = newCurrentPos
-            , board = newBoard
-        }
-            ! []
 
 
 calculatePiecePosition : (Model -> ( Model, Cmd Msg )) -> Model -> ( Model, Cmd Msg )
