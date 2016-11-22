@@ -186,7 +186,37 @@ newMovePieceDown model =
             newBoardPiecePosition model nextPos
 
         newPos =
-            newPiecePosition model nextPos
+            newPiecePosition model checkCollisionDown (updatePiecePosition 0 1) (newPiece model.nextPiece)
+    in
+        { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
+
+
+newMovePieceLeft : Model -> ( Model, Cmd Msg )
+newMovePieceLeft model =
+    let
+        nextPos =
+            updatePiecePosition -1 0 model.piecePosition
+
+        ( mdl, cmd ) =
+            newBoardPiecePosition model nextPos
+
+        newPos =
+            newPiecePosition model checkCollisionLeft (updatePiecePosition -1 0) model.piecePosition
+    in
+        { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
+
+
+newMovePieceRight : Model -> ( Model, Cmd Msg )
+newMovePieceRight model =
+    let
+        nextPos =
+            updatePiecePosition 1 0 model.piecePosition
+
+        ( mdl, cmd ) =
+            newBoardPiecePosition model nextPos
+
+        newPos =
+            newPiecePosition model checkCollisionRight (updatePiecePosition 1 0) model.piecePosition
     in
         { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
 
@@ -202,27 +232,59 @@ newCurrentPosition model nextPosition =
         nextPosition
 
 
-newPiecePosition : Model -> PiecePosition -> PiecePosition
-newPiecePosition model piecePos =
-    let
-        list =
-            piecePositionToList model.piecePosition
+checkCollisitionWithOther : (Position -> Position) -> Board -> PiecePosition -> Bool
+checkCollisitionWithOther updatePos board piecePos =
+    piecePos
+        |> piecePositionToList
+        |> List.map updatePos
+        |> List.any (\pos -> collisionByOccupied pos board)
 
-        newPiecePositionList =
-            model.piecePosition
-                |> piecePositionToList
-                |> List.map (updatePosition 0 1)
 
-        collideWithBorder =
-            list |> List.any (collisionByBorder model.boardHeight)
+checkCollisionWithBorder : Int -> PiecePosition -> Bool
+checkCollisionWithBorder border piecePos =
+    piecePos
+        |> piecePositionToList
+        |> List.any (collisionByBorder border)
 
-        collideWithOther =
-            newPiecePositionList |> List.any (\pos -> collisionByOccupied pos model.board)
-    in
-        if collideWithBorder || collideWithOther then
-            newPiece model.piece
-        else
-            newPiecePositionList |> listToPiecePosition
+
+checkCollisitionWithBorderLeft : PiecePosition -> Bool
+checkCollisitionWithBorderLeft piecePos =
+    piecePos
+        |> piecePositionToList
+        |> List.any (collisionByBorderLeft)
+
+
+checkCollisitionWithBorderRight : Int -> PiecePosition -> Bool
+checkCollisitionWithBorderRight borderRight piecePos =
+    piecePos
+        |> piecePositionToList
+        |> List.any (collisionByBorderRight borderRight)
+
+
+checkCollisionDown : Model -> Bool
+checkCollisionDown model =
+    checkCollisitionWithOther (updatePosition 0 1) model.board model.piecePosition
+        || checkCollisionWithBorder model.boardHeight model.piecePosition
+
+
+checkCollisionLeft : Model -> Bool
+checkCollisionLeft model =
+    checkCollisitionWithOther (updatePosition -1 0) model.board model.piecePosition
+        || checkCollisitionWithBorderLeft model.piecePosition
+
+
+checkCollisionRight : Model -> Bool
+checkCollisionRight model =
+    checkCollisitionWithOther (updatePosition -1 0) model.board model.piecePosition
+        || checkCollisitionWithBorderRight model.boardWidth model.piecePosition
+
+
+newPiecePosition : Model -> (Model -> Bool) -> (PiecePosition -> PiecePosition) -> PiecePosition -> PiecePosition
+newPiecePosition model collision updatePos default =
+    if collision model then
+        default
+    else
+        updatePos model.piecePosition
 
 
 newBoardPiecePosition : Model -> PiecePosition -> ( Model, Cmd Msg )
@@ -325,10 +387,10 @@ update msg model =
                     calculatePiecePosition newMovePieceDown model
 
                 'a' ->
-                    calculate movePieceLeft model
+                    calculatePiecePosition newMovePieceLeft model
 
                 'd' ->
-                    calculate movePieceRight model
+                    calculatePiecePosition newMovePieceRight model
 
                 _ ->
                     model ! []
