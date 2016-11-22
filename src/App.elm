@@ -188,7 +188,7 @@ newMovePieceDown model =
         newPos =
             newPiecePosition model nextPos
     in
-        { mdl | piecePosition = newPos } ! [ cmd ]
+        { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
 
 
 newCurrentPosition : Model -> Position -> Position
@@ -246,7 +246,6 @@ newBoardPiecePosition model piecePos =
             { model
                 | board =
                     (model.board |> insertPiece model.piecePosition)
-                , piece = model.nextPiece
                 , piecePosition = newPiece model.nextPiece
             }
                 ! [ generatePiece ]
@@ -315,9 +314,6 @@ update msg model =
 
         Tick time ->
             let
-                _ =
-                    log "tick" model.currentPosition
-
                 ( model, cmd ) =
                     calculatePiecePosition newMovePieceDown model
             in
@@ -338,11 +334,7 @@ update msg model =
                     model ! []
 
         NextPiece piece ->
-            let
-                _ =
-                    log "pieces" ( model.piece, model.nextPiece, piece )
-            in
-                { model | nextPiece = piece } ! []
+            { model | nextPiece = piece } ! []
 
 
 collisionByBorderLeft : Position -> Bool
@@ -424,18 +416,6 @@ squareStyle pos =
 drawSquare : ( Position, Bool ) -> Html Msg
 drawSquare ( pos, bool ) =
     div [ style <| squareStyle pos ] []
-
-
-
-{- }
-
-   |
-   |
-   | S
-   | Z
-   |
-   | T
--}
 
 
 newPiece : Piece -> PiecePosition
