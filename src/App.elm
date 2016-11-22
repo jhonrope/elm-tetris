@@ -11,6 +11,13 @@ import Char
 import Random exposing (..)
 
 
+type Facing
+    = North
+    | South
+    | East
+    | West
+
+
 type Piece
     = O
     | J
@@ -46,6 +53,7 @@ type alias Model =
     , board : Board
     , piecePosition : PiecePosition
     , nextPiece : Piece
+    , facing : Facing
     }
 
 
@@ -301,11 +309,125 @@ update msg model =
                 'd' ->
                     calculatePiecePosition newMovePieceRight model
 
+                'w' ->
+                    let
+                        _ =
+                            log "w" model.piece
+
+                        ( facing, pieceRotated ) =
+                            rotatePiece model
+                    in
+                        { model | piecePosition = pieceRotated, facing = facing } ! []
+
                 _ ->
                     model ! []
 
         NextPiece piece ->
             { model | nextPiece = piece } ! []
+
+
+rotatePiece : Model -> ( Facing, PiecePosition )
+rotatePiece model =
+    case model.piece of
+        O ->
+            ( model.facing, model.piecePosition )
+
+        L ->
+            log "rotate" rotateL model.facing model.piecePosition
+
+        J ->
+            log "rotate" (rotateJ model.facing model.piecePosition)
+
+        _ ->
+            log "rotate" (rotateL model.facing model.piecePosition)
+
+
+rotateL : Facing -> PiecePosition -> ( Facing, PiecePosition )
+rotateL facing piecePos =
+    case facing of
+        North ->
+            ( East
+            , { piecePos
+                | p1 = updatePosition 2 1 piecePos.p1
+                , p2 = updatePosition 0 -1 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+        East ->
+            ( South
+            , { piecePos
+                | p1 = updatePosition -1 2 piecePos.p1
+                , p2 = updatePosition 1 0 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+        South ->
+            ( West
+            , { piecePos
+                | p1 = updatePosition -2 -1 piecePos.p1
+                , p2 = updatePosition 0 1 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+        West ->
+            ( North
+            , { piecePos
+                | p1 = updatePosition 1 -2 piecePos.p1
+                , p2 = updatePosition -1 0 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+
+rotateJ : Facing -> PiecePosition -> ( Facing, PiecePosition )
+rotateJ facing piecePos =
+    case facing of
+        North ->
+            ( East
+            , { piecePos
+                | p4 = updatePosition 1 2 piecePos.p4
+                , p1 = updatePosition -1 0 piecePos.p3
+                , p2 = piecePos.p1
+                , p3 = piecePos.p2
+              }
+            )
+
+        East ->
+            ( South
+            , { piecePos
+                | p4 = updatePosition -2 1 piecePos.p4
+                , p1 = updatePosition 0 -1 piecePos.p3
+                , p2 = piecePos.p1
+                , p3 = piecePos.p2
+              }
+            )
+
+        South ->
+            ( West
+            , { piecePos
+                | p4 = updatePosition -1 -2 piecePos.p4
+                , p1 = updatePosition 1 0 piecePos.p3
+                , p2 = piecePos.p1
+                , p3 = piecePos.p2
+              }
+            )
+
+        West ->
+            ( North
+            , { piecePos
+                | p4 = updatePosition 2 -1 piecePos.p4
+                , p1 = updatePosition 0 1 piecePos.p3
+                , p2 = piecePos.p1
+                , p3 = piecePos.p2
+              }
+            )
 
 
 collisionByBorderLeft : Position -> Bool
@@ -408,9 +530,9 @@ newPiece piece =
 
         J ->
             { p1 = ( 5, 1 )
-            , p2 = ( 6, -1 )
+            , p2 = ( 6, 1 )
             , p3 = ( 6, 0 )
-            , p4 = ( 6, 1 )
+            , p4 = ( 6, -1 )
             }
 
         L ->
@@ -454,7 +576,7 @@ init =
             newPiece piece
 
         piece =
-            T
+            J
 
         nextPiece =
             I
@@ -468,6 +590,7 @@ init =
             , board = Dict.empty
             , piecePosition = piecePosition
             , nextPiece = nextPiece
+            , facing = North
             }
     in
         model ! [ generatePiece ]
