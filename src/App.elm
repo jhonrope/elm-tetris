@@ -326,7 +326,7 @@ update msg model =
                     model ! []
 
         NextPiece piece ->
-            { model | nextPiece = piece, piece = model.nextPiece } ! []
+            { model | nextPiece = piece, piece = model.nextPiece, facing = North } ! []
 
 
 rotatePiece : Model -> ( Facing, PiecePosition )
@@ -340,6 +340,12 @@ rotatePiece model =
 
         J ->
             log "rotate" (rotateJ model.facing model.piecePosition)
+
+        T ->
+            log "rotate" (rotateT model.facing model.piecePosition)
+
+        I ->
+            log "rotate" (rotateI model.facing model.piecePosition)
 
         _ ->
             log "rotate" (rotateL model.facing model.piecePosition)
@@ -428,6 +434,94 @@ rotateJ facing piecePos =
                 | p4 = updatePosition 2 -1 piecePos.p4
                 , p1 = updatePosition 0 1 piecePos.p3
                 , p2 = piecePos.p1
+                , p3 = piecePos.p2
+              }
+            )
+
+
+rotateI : Facing -> PiecePosition -> ( Facing, PiecePosition )
+rotateI facing piecePos =
+    case facing of
+        North ->
+            ( East
+            , { piecePos
+                | p1 = updatePosition -1 1 piecePos.p1
+                , p3 = updatePosition 1 -1 piecePos.p3
+                , p4 = updatePosition 2 -2 piecePos.p4
+                , p2 = piecePos.p2
+              }
+            )
+
+        East ->
+            ( South
+            , { piecePos
+                | p1 = updatePosition 1 -1 piecePos.p1
+                , p3 = updatePosition -1 1 piecePos.p3
+                , p4 = updatePosition -2 2 piecePos.p4
+                , p2 = piecePos.p2
+              }
+            )
+
+        South ->
+            ( West
+            , { piecePos
+                | p1 = updatePosition -1 1 piecePos.p1
+                , p3 = updatePosition 1 -1 piecePos.p3
+                , p4 = updatePosition 2 -2 piecePos.p4
+                , p2 = piecePos.p2
+              }
+            )
+
+        West ->
+            ( North
+            , { piecePos
+                | p1 = updatePosition 1 -1 piecePos.p1
+                , p3 = updatePosition -1 1 piecePos.p3
+                , p4 = updatePosition -2 2 piecePos.p4
+                , p2 = piecePos.p2
+              }
+            )
+
+
+rotateT : Facing -> PiecePosition -> ( Facing, PiecePosition )
+rotateT facing piecePos =
+    case facing of
+        North ->
+            ( East
+            , { piecePos
+                | p1 = updatePosition 2 1 piecePos.p1
+                , p4 = updatePosition 1 0 piecePos.p3
+                , p2 = piecePos.p4
+                , p3 = piecePos.p2
+              }
+            )
+
+        East ->
+            ( South
+            , { piecePos
+                | p1 = updatePosition -1 2 piecePos.p1
+                , p4 = updatePosition 0 1 piecePos.p3
+                , p2 = piecePos.p4
+                , p3 = piecePos.p2
+              }
+            )
+
+        South ->
+            ( West
+            , { piecePos
+                | p1 = updatePosition -2 -1 piecePos.p1
+                , p4 = updatePosition -1 0 piecePos.p3
+                , p2 = piecePos.p4
+                , p3 = piecePos.p2
+              }
+            )
+
+        West ->
+            ( North
+            , { piecePos
+                | p1 = updatePosition 1 -2 piecePos.p1
+                , p4 = updatePosition 0 -1 piecePos.p3
+                , p2 = piecePos.p4
                 , p3 = piecePos.p2
               }
             )
