@@ -143,7 +143,7 @@ newMovePieceDown model =
         newPos =
             newPiecePosition model checkCollisionDown (updatePiecePosition 0 1) (newPiece model.nextPiece)
     in
-        { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
+        { mdl | piecePosition = newPos } ! [ cmd ]
 
 
 newMovePieceLeft : Model -> ( Model, Cmd Msg )
@@ -158,7 +158,7 @@ newMovePieceLeft model =
         newPos =
             newPiecePosition model checkCollisionLeft (updatePiecePosition -1 0) model.piecePosition
     in
-        { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
+        { mdl | piecePosition = newPos } ! [ cmd ]
 
 
 newMovePieceRight : Model -> ( Model, Cmd Msg )
@@ -173,7 +173,7 @@ newMovePieceRight model =
         newPos =
             newPiecePosition model checkCollisionRight (updatePiecePosition 1 0) model.piecePosition
     in
-        { mdl | piecePosition = newPos, piece = model.nextPiece } ! [ cmd ]
+        { mdl | piecePosition = newPos } ! [ cmd ]
 
 
 checkCollisitionWithOther : (Position -> Position) -> Board -> PiecePosition -> Bool
@@ -219,7 +219,7 @@ checkCollisionLeft model =
 
 checkCollisionRight : Model -> Bool
 checkCollisionRight model =
-    checkCollisitionWithOther (updatePosition -1 0) model.board model.piecePosition
+    checkCollisitionWithOther (updatePosition 1 0) model.board model.piecePosition
         || checkCollisitionWithBorderRight model.boardWidth model.piecePosition
 
 
@@ -293,6 +293,9 @@ update msg model =
 
         Tick time ->
             let
+                _ =
+                    log "piece nextPiece" ( model.piece, model.nextPiece )
+
                 ( model, cmd ) =
                     calculatePiecePosition newMovePieceDown model
             in
@@ -323,7 +326,7 @@ update msg model =
                     model ! []
 
         NextPiece piece ->
-            { model | nextPiece = piece } ! []
+            { model | nextPiece = piece, piece = model.nextPiece } ! []
 
 
 rotatePiece : Model -> ( Facing, PiecePosition )
@@ -576,7 +579,7 @@ init =
             newPiece piece
 
         piece =
-            J
+            I
 
         nextPiece =
             I
