@@ -259,18 +259,31 @@ newBoardPiecePosition model piecePos =
 updateModel : Model -> Model
 updateModel model =
     let
-        counter =
+        ( lines, counter ) =
             updateLinesCounter2 model.piecePosition model.linesCounter
+
+        borrar =
+            log "lines"
+                (lines
+                    |> List.map fst
+                )
+
+        newBoard =
+            (model.board |> insertPiece model.piecePosition)
+
+        cleanedLines =
+            log "hey" (removeLinesFromBoard borrar newBoard)
     in
         { model
             | board =
                 (model.board |> insertPiece model.piecePosition)
             , piecePosition = newPiece model.nextPiece
             , linesCounter = counter
+            , board = cleanedLines
         }
 
 
-updateLinesCounter2 : PiecePosition -> Array Int -> Array Int
+updateLinesCounter2 : PiecePosition -> Array Int -> ( List ( Int, Int ), Array Int )
 updateLinesCounter2 piecePos counter =
     piecePos
         |> piecePositionToList
@@ -279,20 +292,21 @@ updateLinesCounter2 piecePos counter =
         |> removeLine
 
 
-removeLine : Array Int -> Array Int
+removeLine : Array Int -> ( List ( Int, Int ), Array Int )
 removeLine counter =
     let
         ( linesToRemove, lines ) =
             counter
-                |> Array.toList
-                |> List.partition (\lineCount -> lineCount == 10)
+                |> Array.toIndexedList
+                |> List.partition (\lineCount -> snd lineCount == 10)
 
         newLines =
-            Array.repeat (List.length linesToRemove) 0
+            lines
+                |> List.map snd
+                |> Array.fromList
+                |> Array.append (Array.repeat (List.length linesToRemove) 0)
     in
-        lines
-            |> Array.fromList
-            |> Array.append newLines
+        ( linesToRemove, newLines )
 
 
 updateLinesCounter : Int -> Array Int -> Array Int
@@ -312,12 +326,46 @@ isGameOver counter =
         |> \count -> count > 0
 
 
+removeLineFromBoard : Int -> Board -> Board
+removeLineFromBoard line board =
+    let
+        a =
+            \c -> \b -> snd c /= line
+    in
+        log "board" (board |> Dict.filter a)
 
-{- }
-   removeLine : Board -> Board
-   removeLine board =
-       board
--}
+
+partitionBoard : Int -> Board -> Board
+partitionBoard line board =
+    let
+        ( partA, partB ) =
+            board |> Dict.partition (\c -> \b -> snd c < line)
+
+        updatePartA =
+            updateBoard partA
+
+        updatePartB =
+            partB |> Dict.filter (\c -> \b -> snd c > line)
+    in
+        updatePartA |> Dict.union updatePartB
+
+
+updateBoard : Board -> Board
+updateBoard board =
+    board
+        |> Dict.toList
+        |> List.map updatePositionfromBoard
+        |> Dict.fromList
+
+
+updatePositionfromBoard : ( Position, Bool ) -> ( Position, Bool )
+updatePositionfromBoard ( ( x, y ), b ) =
+    ( ( x, y + 1 ), b )
+
+
+removeLinesFromBoard : List Int -> Board -> Board
+removeLinesFromBoard list board =
+    list |> List.foldl partitionBoard board
 
 
 contador : Model -> Array Int
@@ -359,9 +407,6 @@ update msg model =
 
         Tick time ->
             let
-                _ =
-                    log "piece nextPiece" ( model.piece, model.nextPiece )
-
                 ( model, cmd ) =
                     calculatePiecePosition newMovePieceDown model
             in
