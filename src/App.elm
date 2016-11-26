@@ -152,13 +152,10 @@ newMovePieceLeft model =
         nextPos =
             updatePiecePosition -1 0 model.piecePosition
 
-        ( mdl, cmd ) =
-            newBoardPiecePosition model nextPos
-
         newPos =
             newPiecePosition model checkCollisionLeft (updatePiecePosition -1 0) model.piecePosition
     in
-        { mdl | piecePosition = newPos } ! [ cmd ]
+        { model | piecePosition = newPos } ! []
 
 
 newMovePieceRight : Model -> ( Model, Cmd Msg )
@@ -167,13 +164,10 @@ newMovePieceRight model =
         nextPos =
             updatePiecePosition 1 0 model.piecePosition
 
-        ( mdl, cmd ) =
-            newBoardPiecePosition model nextPos
-
         newPos =
             newPiecePosition model checkCollisionRight (updatePiecePosition 1 0) model.piecePosition
     in
-        { mdl | piecePosition = newPos } ! [ cmd ]
+        { model | piecePosition = newPos } ! []
 
 
 checkCollisitionWithOther : (Position -> Position) -> Board -> PiecePosition -> Bool
@@ -229,6 +223,11 @@ newPiecePosition model collision updatePos default =
         default
     else
         updatePos model.piecePosition
+
+
+newBoardPiecePositionSide : Model -> PiecePosition -> ( Model, Cmd Msg )
+newBoardPiecePositionSide model piecePos =
+    model ! []
 
 
 newBoardPiecePosition : Model -> PiecePosition -> ( Model, Cmd Msg )
@@ -319,6 +318,9 @@ update msg model =
 
                         ( facing, pieceRotated ) =
                             rotatePiece model
+
+                        nextPosition =
+                            checkCollisionRotate model pieceRotated
                     in
                         { model | piecePosition = pieceRotated, facing = facing } ! []
 
@@ -327,6 +329,14 @@ update msg model =
 
         NextPiece piece ->
             { model | nextPiece = piece, piece = model.nextPiece, facing = North } ! []
+
+
+checkCollisionRotate : Model -> PiecePosition -> PiecePosition
+checkCollisionRotate model piecePos =
+    if checkCollisitionWithOther identity model.board piecePos then
+        model.piecePosition
+    else
+        piecePos
 
 
 rotatePiece : Model -> ( Facing, PiecePosition )
@@ -347,8 +357,11 @@ rotatePiece model =
         I ->
             log "rotate" (rotateI model.facing model.piecePosition)
 
-        _ ->
-            log "rotate" (rotateL model.facing model.piecePosition)
+        S ->
+            log "rotate" (rotateS model.facing model.piecePosition)
+
+        Z ->
+            log "rotate" (rotateZ model.facing model.piecePosition)
 
 
 rotateL : Facing -> PiecePosition -> ( Facing, PiecePosition )
@@ -527,6 +540,94 @@ rotateT facing piecePos =
             )
 
 
+rotateS : Facing -> PiecePosition -> ( Facing, PiecePosition )
+rotateS facing piecePos =
+    case facing of
+        North ->
+            ( East
+            , { piecePos
+                | p1 = updatePosition 1 -2 piecePos.p1
+                , p4 = updatePosition 1 0 piecePos.p2
+                , p2 = piecePos.p3
+                , p3 = piecePos.p4
+              }
+            )
+
+        East ->
+            ( South
+            , { piecePos
+                | p1 = updatePosition -1 2 piecePos.p1
+                , p2 = updatePosition -1 0 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+        South ->
+            ( West
+            , { piecePos
+                | p1 = updatePosition 1 -2 piecePos.p1
+                , p4 = updatePosition 1 0 piecePos.p2
+                , p2 = piecePos.p3
+                , p3 = piecePos.p4
+              }
+            )
+
+        West ->
+            ( North
+            , { piecePos
+                | p1 = updatePosition -1 2 piecePos.p1
+                , p2 = updatePosition -1 0 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+
+rotateZ : Facing -> PiecePosition -> ( Facing, PiecePosition )
+rotateZ facing piecePos =
+    case facing of
+        North ->
+            ( East
+            , { piecePos
+                | p1 = updatePosition 2 -1 piecePos.p1
+                , p2 = updatePosition 0 -1 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+        East ->
+            ( South
+            , { piecePos
+                | p1 = updatePosition -2 1 piecePos.p1
+                , p4 = updatePosition 0 1 piecePos.p2
+                , p2 = piecePos.p3
+                , p3 = piecePos.p4
+              }
+            )
+
+        South ->
+            ( West
+            , { piecePos
+                | p1 = updatePosition 2 -1 piecePos.p1
+                , p2 = updatePosition 0 -1 piecePos.p4
+                , p3 = piecePos.p2
+                , p4 = piecePos.p3
+              }
+            )
+
+        West ->
+            ( North
+            , { piecePos
+                | p1 = updatePosition -2 1 piecePos.p1
+                , p4 = updatePosition 0 1 piecePos.p2
+                , p2 = piecePos.p3
+                , p3 = piecePos.p4
+              }
+            )
+
+
 collisionByBorderLeft : Position -> Bool
 collisionByBorderLeft pos =
     fst pos <= 1
@@ -673,10 +774,10 @@ init =
             newPiece piece
 
         piece =
-            I
+            Z
 
         nextPiece =
-            I
+            Z
 
         model =
             { piece = piece
