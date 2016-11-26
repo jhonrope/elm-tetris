@@ -9,6 +9,7 @@ import Debug exposing (..)
 import Keyboard
 import Char
 import Random exposing (..)
+import Array exposing (..)
 
 
 type Facing
@@ -54,6 +55,8 @@ type alias Model =
     , piecePosition : PiecePosition
     , nextPiece : Piece
     , facing : Facing
+    , linesCounter : Array Int
+    , gameOver : Bool
     }
 
 
@@ -248,14 +251,78 @@ newBoardPiecePosition model piecePos =
             newPiecePositionList |> List.any (\pos -> collisionByOccupied pos model.board)
     in
         if collideWithBorder || collideWithOther then
-            { model
-                | board =
-                    (model.board |> insertPiece model.piecePosition)
-                , piecePosition = newPiece model.nextPiece
-            }
-                ! [ generatePiece ]
+            updateModel model ! [ generatePiece ]
         else
             model ! []
+
+
+updateModel : Model -> Model
+updateModel model =
+    let
+        counter =
+            updateLinesCounter2 model.piecePosition model.linesCounter
+    in
+        { model
+            | board =
+                (model.board |> insertPiece model.piecePosition)
+            , piecePosition = newPiece model.nextPiece
+            , linesCounter = counter
+        }
+
+
+updateLinesCounter2 : PiecePosition -> Array Int -> Array Int
+updateLinesCounter2 piecePos counter =
+    piecePos
+        |> piecePositionToList
+        |> List.map (snd)
+        |> List.foldl (updateLinesCounter) counter
+        |> removeLine
+
+
+removeLine : Array Int -> Array Int
+removeLine counter =
+    let
+        ( linesToRemove, lines ) =
+            counter
+                |> Array.toList
+                |> List.partition (\lineCount -> lineCount == 10)
+
+        newLines =
+            Array.repeat (List.length linesToRemove) 0
+    in
+        lines
+            |> Array.fromList
+            |> Array.append newLines
+
+
+updateLinesCounter : Int -> Array Int -> Array Int
+updateLinesCounter line counter =
+    let
+        total =
+            Maybe.withDefault 0 <| Array.get line counter
+    in
+        Array.set line (total + 1) counter
+
+
+isGameOver : Array Int -> Bool
+isGameOver counter =
+    counter
+        |> Array.get 0
+        |> Maybe.withDefault 0
+        |> \count -> count > 0
+
+
+
+{- }
+   removeLine : Board -> Board
+   removeLine board =
+       board
+-}
+
+
+contador : Model -> Array Int
+contador model =
+    Array.repeat (model.boardHeight + 1) 0
 
 
 piecePositionToDict : PiecePosition -> Board
@@ -317,7 +384,7 @@ update msg model =
                             log "w" model.piece
 
                         ( facing, pieceRotated ) =
-                            rotatePiece model
+                            adjustRotatePiece model
 
                         nextPosition =
                             checkCollisionRotate model pieceRotated
@@ -328,7 +395,11 @@ update msg model =
                     model ! []
 
         NextPiece piece ->
-            { model | nextPiece = piece, piece = model.nextPiece, facing = North } ! []
+            let
+                gameOver =
+                    isGameOver model.linesCounter
+            in
+                { model | nextPiece = piece, piece = model.nextPiece, facing = North, gameOver = gameOver } ! []
 
 
 checkCollisionRotate : Model -> PiecePosition -> PiecePosition
@@ -337,6 +408,24 @@ checkCollisionRotate model piecePos =
         model.piecePosition
     else
         piecePos
+
+
+adjustRotatePiece : Model -> ( Facing, PiecePosition )
+adjustRotatePiece model =
+    let
+        ( facing, pieceRotated ) =
+            rotatePiece model
+
+        ( newFacing, adjustedRotatedPiece ) =
+            if
+                checkCollisitionWithBorderLeft pieceRotated
+                    || checkCollisitionWithBorderRight model.boardWidth pieceRotated
+            then
+                ( model.facing, model.piecePosition )
+            else
+                ( facing, pieceRotated )
+    in
+        ( newFacing, adjustedRotatedPiece )
 
 
 rotatePiece : Model -> ( Facing, PiecePosition )
@@ -370,40 +459,40 @@ rotateL facing piecePos =
         North ->
             ( East
             , { piecePos
-                | p1 = updatePosition 2 1 piecePos.p1
-                , p2 = updatePosition 0 -1 piecePos.p4
-                , p3 = piecePos.p2
-                , p4 = piecePos.p3
+                | p3 = updatePosition -1 1 piecePos.p1
+                , p4 = updatePosition -1 0 piecePos.p3
+                , p1 = updatePosition 0 -1 piecePos.p4
+                , p2 = piecePos.p2
               }
             )
 
         East ->
             ( South
             , { piecePos
-                | p1 = updatePosition -1 2 piecePos.p1
-                , p2 = updatePosition 1 0 piecePos.p4
-                , p3 = piecePos.p2
-                , p4 = piecePos.p3
+                | p3 = updatePosition -1 -1 piecePos.p1
+                , p4 = updatePosition 0 -1 piecePos.p3
+                , p1 = updatePosition 1 0 piecePos.p4
+                , p2 = piecePos.p2
               }
             )
 
         South ->
             ( West
             , { piecePos
-                | p1 = updatePosition -2 -1 piecePos.p1
-                , p2 = updatePosition 0 1 piecePos.p4
-                , p3 = piecePos.p2
-                , p4 = piecePos.p3
+                | p3 = updatePosition 1 -1 piecePos.p1
+                , p4 = updatePosition 1 0 piecePos.p3
+                , p1 = updatePosition 0 1 piecePos.p4
+                , p2 = piecePos.p2
               }
             )
 
         West ->
             ( North
             , { piecePos
-                | p1 = updatePosition 1 -2 piecePos.p1
-                , p2 = updatePosition -1 0 piecePos.p4
-                , p3 = piecePos.p2
-                , p4 = piecePos.p3
+                | p3 = updatePosition 1 1 piecePos.p1
+                , p4 = updatePosition 0 1 piecePos.p3
+                , p1 = updatePosition -1 0 piecePos.p4
+                , p2 = piecePos.p2
               }
             )
 
@@ -650,7 +739,10 @@ collisionByOccupied pos board =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch [ every second Tick, Keyboard.presses KeyMsg ]
+    if not model.gameOver then
+        Sub.batch [ every second Tick, Keyboard.presses KeyMsg ]
+    else
+        Sub.none
 
 
 view : Model -> Html Msg
@@ -659,8 +751,18 @@ view model =
         [ text <| toString model.currentTick
         , text <| toString model.board
         , div [] [ text <| toString model.nextPiece ]
+        , div [] [ text <| toString model.linesCounter ]
         , tablero model
+        , showGameOver model.gameOver
         ]
+
+
+showGameOver : Bool -> Html Msg
+showGameOver isGameOver =
+    if isGameOver then
+        h1 [] [ text "Game Over!" ]
+    else
+        div [] []
 
 
 tablero : Model -> Html Msg
@@ -774,10 +876,10 @@ init =
             newPiece piece
 
         piece =
-            Z
+            J
 
         nextPiece =
-            Z
+            J
 
         model =
             { piece = piece
@@ -789,6 +891,8 @@ init =
             , piecePosition = piecePosition
             , nextPiece = nextPiece
             , facing = North
+            , linesCounter = Array.repeat (boardHeight + 1) 0
+            , gameOver = False
             }
     in
         model ! [ generatePiece ]
