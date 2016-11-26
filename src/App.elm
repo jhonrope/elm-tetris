@@ -63,6 +63,7 @@ type alias Model =
     , facing : Facing
     , linesCounter : Array Int
     , gameOver : Bool
+    , lines : Int
     }
 
 
@@ -269,16 +270,18 @@ updateModel model =
             updateLinesCounter2 model.piecePosition model.linesCounter
 
         borrar =
-            log "lines"
-                (lines
-                    |> List.map fst
-                )
+            lines
+                |> List.map fst
 
         newBoard =
-            (model.board |> insertPiece model.piece model.piecePosition)
+            model.board |> insertPiece model.piece model.piecePosition
 
         cleanedLines =
-            log "hey" (removeLinesFromBoard borrar newBoard)
+            removeLinesFromBoard borrar
+                newBoard
+
+        linesCompleted =
+            borrar |> List.length
     in
         { model
             | board =
@@ -286,6 +289,7 @@ updateModel model =
             , piecePosition = newPiece model.nextPiece
             , linesCounter = counter
             , board = cleanedLines
+            , lines = model.lines + linesCompleted
         }
 
 
@@ -791,7 +795,10 @@ view : Model -> Html Msg
 view model =
     div []
         [ div [] [ text <| toString model.nextPiece ]
-        , div [] [ text <| toString model.board ]
+        , div [ style <| border model ] []
+        , div []
+            [ h1 [] [ text <| "Lines: " ++ toString model.lines ]
+            ]
         , tablero model
         , showGameOver model.gameOver
         ]
@@ -822,6 +829,33 @@ tablero model =
         div [] tablero
 
 
+border : Model -> List ( String, String )
+border model =
+    let
+        blockSize =
+            18
+
+        left =
+            145
+
+        top =
+            100
+
+        width =
+            blockSize * model.boardWidth + 5
+
+        height =
+            blockSize * (model.boardHeight + 1)
+    in
+        [ ( "position", "absolute" )
+        , ( "left", toString left ++ "px" )
+        , ( "top", toString top ++ "px" )
+        , ( "height", toString height ++ "px" )
+        , ( "width", toString width ++ "px" )
+        , ( "border", "1px solid black" )
+        ]
+
+
 squareStyle : Position -> PositionProperty -> List ( String, String )
 squareStyle pos posPro =
     let
@@ -832,7 +866,7 @@ squareStyle pos posPro =
             18
 
         left =
-            30 + (x * blockSize)
+            130 + (x * blockSize)
 
         top =
             100 + (y * blockSize)
@@ -959,6 +993,7 @@ init =
             , facing = North
             , linesCounter = Array.repeat (boardHeight + 1) 0
             , gameOver = False
+            , lines = 0
             }
     in
         model ! [ generatePiece ]
