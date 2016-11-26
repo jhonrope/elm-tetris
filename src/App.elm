@@ -42,7 +42,13 @@ type alias Position =
 
 
 type alias Board =
-    Dict Position Bool
+    Dict Position PositionProperty
+
+
+type alias PositionProperty =
+    { occupied : Bool
+    , piece : Piece
+    }
 
 
 type alias Model =
@@ -269,14 +275,14 @@ updateModel model =
                 )
 
         newBoard =
-            (model.board |> insertPiece model.piecePosition)
+            (model.board |> insertPiece model.piece model.piecePosition)
 
         cleanedLines =
             log "hey" (removeLinesFromBoard borrar newBoard)
     in
         { model
             | board =
-                (model.board |> insertPiece model.piecePosition)
+                (model.board |> insertPiece model.piece model.piecePosition)
             , piecePosition = newPiece model.nextPiece
             , linesCounter = counter
             , board = cleanedLines
@@ -326,15 +332,6 @@ isGameOver counter =
         |> \count -> count > 0
 
 
-removeLineFromBoard : Int -> Board -> Board
-removeLineFromBoard line board =
-    let
-        a =
-            \c -> \b -> snd c /= line
-    in
-        log "board" (board |> Dict.filter a)
-
-
 partitionBoard : Int -> Board -> Board
 partitionBoard line board =
     let
@@ -358,7 +355,7 @@ updateBoard board =
         |> Dict.fromList
 
 
-updatePositionfromBoard : ( Position, Bool ) -> ( Position, Bool )
+updatePositionfromBoard : ( Position, PositionProperty ) -> ( Position, PositionProperty )
 updatePositionfromBoard ( ( x, y ), b ) =
     ( ( x, y + 1 ), b )
 
@@ -373,19 +370,19 @@ contador model =
     Array.repeat (model.boardHeight + 1) 0
 
 
-piecePositionToDict : PiecePosition -> Board
-piecePositionToDict piecePos =
+piecePositionToDict : Piece -> PiecePosition -> Board
+piecePositionToDict piece piecePos =
     piecePos
         |> piecePositionToList
-        |> List.map (\pos -> ( pos, True ))
+        |> List.map (\pos -> ( pos, PositionProperty True piece ))
         |> Dict.fromList
 
 
-insertPiece : PiecePosition -> Board -> Board
-insertPiece piecePos board =
+insertPiece : Piece -> PiecePosition -> Board -> Board
+insertPiece piece piecePos board =
     let
         positions =
-            piecePos |> piecePositionToDict
+            piecePos |> piecePositionToDict piece
     in
         board |> Dict.union positions
 
@@ -793,10 +790,8 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ text <| toString model.currentTick
-        , text <| toString model.board
-        , div [] [ text <| toString model.nextPiece ]
-        , div [] [ text <| toString model.linesCounter ]
+        [ div [] [ text <| toString model.nextPiece ]
+        , div [] [ text <| toString model.board ]
         , tablero model
         , showGameOver model.gameOver
         ]
@@ -816,7 +811,7 @@ tablero model =
         piece =
             model.piecePosition
                 |> piecePositionToList
-                |> List.map (\pos -> ( pos, True ))
+                |> List.map (\pos -> ( pos, PositionProperty True model.piece ))
 
         tablero =
             model.board
@@ -827,14 +822,14 @@ tablero model =
         div [] tablero
 
 
-squareStyle : Position -> List ( String, String )
-squareStyle pos =
+squareStyle : Position -> PositionProperty -> List ( String, String )
+squareStyle pos posPro =
     let
         ( x, y ) =
             ( Basics.max 1 <| fst pos, Basics.max 1 <| snd pos )
 
         blockSize =
-            20
+            18
 
         left =
             30 + (x * blockSize)
@@ -847,13 +842,39 @@ squareStyle pos =
         , ( "top", toString top ++ "px" )
         , ( "height", toString blockSize ++ "px" )
         , ( "width", toString blockSize ++ "px" )
-        , ( "background-color", "black" )
+        , ( "background-color", pieceColor posPro.piece )
+        , ( "border", "1px solid black" )
         ]
 
 
-drawSquare : ( Position, Bool ) -> Html Msg
+pieceColor : Piece -> String
+pieceColor piece =
+    case piece of
+        L ->
+            "red"
+
+        O ->
+            "blue"
+
+        T ->
+            "green"
+
+        J ->
+            "orange"
+
+        I ->
+            "purple"
+
+        S ->
+            "yellow"
+
+        Z ->
+            "cyan"
+
+
+drawSquare : ( Position, PositionProperty ) -> Html Msg
 drawSquare ( pos, bool ) =
-    div [ style <| squareStyle pos ] []
+    div [ style <| squareStyle pos bool ] []
 
 
 newPiece : Piece -> PiecePosition
