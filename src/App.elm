@@ -794,13 +794,30 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [] [ text <| toString model.nextPiece ]
+        [ div []
+            [ h2
+                []
+                [ text <| "Next piece: " ++ toString model.nextPiece
+                ]
+            ]
         , div [ style <| border model ] []
         , div []
-            [ h1 [] [ text <| "Lines: " ++ toString model.lines ]
+            [ h2 [] [ text <| "Lines: " ++ toString model.lines ]
             ]
+        , showControls
         , tablero model
         , showGameOver model.gameOver
+        ]
+
+
+showControls : Html Msg
+showControls =
+    div []
+        [ h2 [] [ text "Controls:" ]
+        , div [] [ text "Move left -> A" ]
+        , div [] [ text "Move right -> D" ]
+        , div [] [ text "Move down -> S" ]
+        , div [] [ text "Rotate -> W" ]
         ]
 
 
@@ -836,7 +853,7 @@ border model =
             18
 
         left =
-            145
+            195
 
         top =
             100
@@ -866,7 +883,7 @@ squareStyle pos posPro =
             18
 
         left =
-            130 + (x * blockSize)
+            180 + (x * blockSize)
 
         top =
             100 + (y * blockSize)
