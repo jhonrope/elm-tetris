@@ -322,7 +322,7 @@ update msg model =
                         nextPosition =
                             checkCollisionRotate model pieceRotated
                     in
-                        { model | piecePosition = pieceRotated, facing = facing } ! []
+                        { model | piecePosition = nextPosition, facing = facing } ! []
 
                 _ ->
                     model ! []
