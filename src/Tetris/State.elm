@@ -36,7 +36,6 @@ init =
         model =
             { piece = piece
             , currentTick = 0
-            , currentPosition = ( 5, 1 )
             , boardHeight = boardHeight
             , boardWidth = boardWidth
             , board = Dict.empty

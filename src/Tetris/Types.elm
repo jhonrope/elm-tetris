@@ -48,7 +48,6 @@ type alias PositionProperty =
 type alias Model =
     { piece : Piece
     , currentTick : Float
-    , currentPosition : Position
     , boardHeight : Int
     , boardWidth : Int
     , board : Board
