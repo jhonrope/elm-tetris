@@ -1,10 +1,10 @@
 {
-    "version": "1.0.0",
-    "summary": "helpful summary of your project, less than 80 characters",
-    "repository": "https://github.com/user/project.git",
+    "version": "0.1.0",
+    "summary": "Tetris implementation in Elm",
+    "repository": "https://github.com/jhonrope/elm-tetris.git",
     "license": "BSD3",
     "source-directories": [
-        "."
+        "src"
     ],
     "exposed-modules": [],
     "dependencies": {
