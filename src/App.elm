@@ -10,103 +10,9 @@ import Keyboard
 import Char
 import Random exposing (..)
 import Array exposing (..)
-
-
-type Facing
-    = North
-    | South
-    | East
-    | West
-
-
-type Piece
-    = O
-    | J
-    | L
-    | S
-    | Z
-    | I
-    | T
-
-
-type alias PiecePosition =
-    { p1 : Position
-    , p2 : Position
-    , p3 : Position
-    , p4 : Position
-    }
-
-
-type alias Position =
-    ( Int, Int )
-
-
-type alias Board =
-    Dict Position PositionProperty
-
-
-type alias PositionProperty =
-    { occupied : Bool
-    , piece : Piece
-    }
-
-
-type alias Model =
-    { piece : Piece
-    , currentTick : Float
-    , currentPosition : Position
-    , boardHeight : Int
-    , boardWidth : Int
-    , board : Board
-    , piecePosition : PiecePosition
-    , nextPiece : Piece
-    , facing : Facing
-    , linesCounter : Array Int
-    , gameOver : Bool
-    , lines : Int
-    }
-
-
-type Msg
-    = NoOp
-    | Tick Time
-    | KeyMsg Keyboard.KeyCode
-    | NextPiece Piece
-
-
-generatePiece : Cmd Msg
-generatePiece =
-    Random.int 1 7
-        |> Random.map randomPiece
-        |> Random.generate NextPiece
-
-
-randomPiece : Int -> Piece
-randomPiece int =
-    case int of
-        1 ->
-            O
-
-        2 ->
-            J
-
-        3 ->
-            L
-
-        4 ->
-            S
-
-        5 ->
-            Z
-
-        6 ->
-            I
-
-        7 ->
-            T
-
-        _ ->
-            O
+import Tetris.Types exposing (..)
+import Tetris.View exposing (..)
+import Tetris.State exposing (..)
 
 
 updatePosition : Int -> Int -> Position -> Position
@@ -461,17 +367,14 @@ adjustRotatePiece model =
     let
         ( facing, pieceRotated ) =
             rotatePiece model
-
-        ( newFacing, adjustedRotatedPiece ) =
-            if
-                checkCollisitionWithBorderLeft pieceRotated
-                    || checkCollisitionWithBorderRight model.boardWidth pieceRotated
-            then
-                ( model.facing, model.piecePosition )
-            else
-                ( facing, pieceRotated )
     in
-        ( newFacing, adjustedRotatedPiece )
+        if
+            checkCollisitionWithBorderLeft pieceRotated
+                || checkCollisitionWithBorderRight model.boardWidth pieceRotated
+        then
+            ( model.facing, model.piecePosition )
+        else
+            ( facing, pieceRotated )
 
 
 rotatePiece : Model -> ( Facing, PiecePosition )
@@ -481,22 +384,22 @@ rotatePiece model =
             ( model.facing, model.piecePosition )
 
         L ->
-            log "rotate" rotateL model.facing model.piecePosition
+            rotateL model.facing model.piecePosition
 
         J ->
-            log "rotate" (rotateJ model.facing model.piecePosition)
+            rotateJ model.facing model.piecePosition
 
         T ->
-            log "rotate" (rotateT model.facing model.piecePosition)
+            rotateT model.facing model.piecePosition
 
         I ->
-            log "rotate" (rotateI model.facing model.piecePosition)
+            rotateI model.facing model.piecePosition
 
         S ->
-            log "rotate" (rotateS model.facing model.piecePosition)
+            rotateS model.facing model.piecePosition
 
         Z ->
-            log "rotate" (rotateZ model.facing model.piecePosition)
+            rotateZ model.facing model.piecePosition
 
 
 rotateL : Facing -> PiecePosition -> ( Facing, PiecePosition )
@@ -781,239 +684,6 @@ collisionByBorder maxPos pos =
 collisionByOccupied : Position -> Board -> Bool
 collisionByOccupied pos board =
     board |> Dict.member pos
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    if not model.gameOver then
-        Sub.batch [ every second Tick, Keyboard.presses KeyMsg ]
-    else
-        Sub.none
-
-
-view : Model -> Html Msg
-view model =
-    div []
-        [ div []
-            [ h2
-                []
-                [ text <| "Next piece: " ++ toString model.nextPiece
-                ]
-            ]
-        , div [ style <| border model ] []
-        , div []
-            [ h2 [] [ text <| "Lines: " ++ toString model.lines ]
-            ]
-        , showControls
-        , tablero model
-        , showGameOver model.gameOver
-        ]
-
-
-showControls : Html Msg
-showControls =
-    div []
-        [ h2 [] [ text "Controls:" ]
-        , div [] [ text "Move left -> A" ]
-        , div [] [ text "Move right -> D" ]
-        , div [] [ text "Move down -> S" ]
-        , div [] [ text "Rotate -> W" ]
-        ]
-
-
-showGameOver : Bool -> Html Msg
-showGameOver isGameOver =
-    if isGameOver then
-        h1 [] [ text "Game Over!" ]
-    else
-        div [] []
-
-
-tablero : Model -> Html Msg
-tablero model =
-    let
-        piece =
-            model.piecePosition
-                |> piecePositionToList
-                |> List.map (\pos -> ( pos, PositionProperty True model.piece ))
-
-        tablero =
-            model.board
-                |> Dict.toList
-                |> List.append piece
-                |> List.map drawSquare
-    in
-        div [] tablero
-
-
-border : Model -> List ( String, String )
-border model =
-    let
-        blockSize =
-            18
-
-        left =
-            195
-
-        top =
-            100
-
-        width =
-            blockSize * model.boardWidth + 5
-
-        height =
-            blockSize * (model.boardHeight + 1)
-    in
-        [ ( "position", "absolute" )
-        , ( "left", toString left ++ "px" )
-        , ( "top", toString top ++ "px" )
-        , ( "height", toString height ++ "px" )
-        , ( "width", toString width ++ "px" )
-        , ( "border", "1px solid black" )
-        ]
-
-
-squareStyle : Position -> PositionProperty -> List ( String, String )
-squareStyle pos posPro =
-    let
-        ( x, y ) =
-            ( Basics.max 1 <| fst pos, Basics.max 1 <| snd pos )
-
-        blockSize =
-            18
-
-        left =
-            180 + (x * blockSize)
-
-        top =
-            100 + (y * blockSize)
-    in
-        [ ( "position", "absolute" )
-        , ( "left", toString left ++ "px" )
-        , ( "top", toString top ++ "px" )
-        , ( "height", toString blockSize ++ "px" )
-        , ( "width", toString blockSize ++ "px" )
-        , ( "background-color", pieceColor posPro.piece )
-        , ( "border", "1px solid black" )
-        ]
-
-
-pieceColor : Piece -> String
-pieceColor piece =
-    case piece of
-        L ->
-            "red"
-
-        O ->
-            "blue"
-
-        T ->
-            "green"
-
-        J ->
-            "orange"
-
-        I ->
-            "purple"
-
-        S ->
-            "yellow"
-
-        Z ->
-            "cyan"
-
-
-drawSquare : ( Position, PositionProperty ) -> Html Msg
-drawSquare ( pos, bool ) =
-    div [ style <| squareStyle pos bool ] []
-
-
-newPiece : Piece -> PiecePosition
-newPiece piece =
-    case piece of
-        I ->
-            { p1 = ( 5, -2 )
-            , p2 = ( 5, -1 )
-            , p3 = ( 5, 0 )
-            , p4 = ( 5, 1 )
-            }
-
-        O ->
-            { p1 = ( 5, 1 )
-            , p2 = ( 5, 0 )
-            , p3 = ( 6, 1 )
-            , p4 = ( 6, 0 )
-            }
-
-        J ->
-            { p1 = ( 5, 1 )
-            , p2 = ( 6, 1 )
-            , p3 = ( 6, 0 )
-            , p4 = ( 6, -1 )
-            }
-
-        L ->
-            { p1 = ( 5, -1 )
-            , p2 = ( 5, 0 )
-            , p3 = ( 5, 1 )
-            , p4 = ( 6, 1 )
-            }
-
-        S ->
-            { p1 = ( 4, 1 )
-            , p2 = ( 5, 1 )
-            , p3 = ( 5, 0 )
-            , p4 = ( 6, 0 )
-            }
-
-        Z ->
-            { p1 = ( 4, 0 )
-            , p2 = ( 5, 0 )
-            , p3 = ( 5, 1 )
-            , p4 = ( 6, 1 )
-            }
-
-        T ->
-            { p1 = ( 5, -1 )
-            , p2 = ( 5, 0 )
-            , p3 = ( 5, 1 )
-            , p4 = ( 6, 0 )
-            }
-
-
-init =
-    let
-        boardHeight =
-            20
-
-        boardWidth =
-            10
-
-        piecePosition =
-            newPiece piece
-
-        piece =
-            J
-
-        nextPiece =
-            J
-
-        model =
-            { piece = piece
-            , currentTick = 0
-            , currentPosition = ( 5, 1 )
-            , boardHeight = boardHeight
-            , boardWidth = boardWidth
-            , board = Dict.empty
-            , piecePosition = piecePosition
-            , nextPiece = nextPiece
-            , facing = North
-            , linesCounter = Array.repeat (boardHeight + 1) 0
-            , gameOver = False
-            , lines = 0
-            }
-    in
-        model ! [ generatePiece ]
 
 
 main : Program Never
