@@ -1,7 +1,6 @@
 module App exposing (..)
 
 import Html exposing (..)
-import Html.App exposing (..)
 import Html.Attributes exposing (..)
 import Time exposing (..)
 import Dict exposing (..)
@@ -17,7 +16,7 @@ import Tetris.State exposing (..)
 
 updatePosition : Int -> Int -> Position -> Position
 updatePosition x y pos =
-    ( fst pos + x, snd pos + y )
+    ( Tuple.first pos + x, Tuple.second pos + y )
 
 
 updatePiecePosition : Int -> Int -> PiecePosition -> PiecePosition
@@ -177,7 +176,7 @@ updateModel model =
 
         borrar =
             lines
-                |> List.map fst
+                |> List.map Tuple.first
 
         newBoard =
             model.board |> insertPiece model.piece model.piecePosition
@@ -203,7 +202,7 @@ updateLinesCounter2 : PiecePosition -> Array Int -> ( List ( Int, Int ), Array I
 updateLinesCounter2 piecePos counter =
     piecePos
         |> piecePositionToList
-        |> List.map (snd)
+        |> List.map (Tuple.second)
         |> List.foldl (updateLinesCounter) counter
         |> removeLine
 
@@ -214,11 +213,11 @@ removeLine counter =
         ( linesToRemove, lines ) =
             counter
                 |> Array.toIndexedList
-                |> List.partition (\lineCount -> snd lineCount == 10)
+                |> List.partition (\lineCount -> Tuple.second lineCount == 10)
 
         newLines =
             lines
-                |> List.map snd
+                |> List.map Tuple.second
                 |> Array.fromList
                 |> Array.append (Array.repeat (List.length linesToRemove) 0)
     in
@@ -246,13 +245,13 @@ partitionBoard : Int -> Board -> Board
 partitionBoard line board =
     let
         ( partA, partB ) =
-            board |> Dict.partition (\c -> \b -> snd c < line)
+            board |> Dict.partition (\c -> \b -> Tuple.second c < line)
 
         updatePartA =
             updateBoard partA
 
         updatePartB =
-            partB |> Dict.filter (\c -> \b -> snd c > line)
+            partB |> Dict.filter (\c -> \b -> Tuple.second c > line)
     in
         updatePartA |> Dict.union updatePartB
 
@@ -314,10 +313,10 @@ update msg model =
 
         Tick time ->
             let
-                ( model, cmd ) =
+                ( mdl, cmd ) =
                     calculatePiecePosition newMovePieceDown model
             in
-                { model | currentTick = model.currentTick + 1 } ! [ cmd ]
+                { mdl | currentTick = model.currentTick + 1 } ! [ cmd ]
 
         KeyMsg code ->
             case Char.fromCode code of
@@ -668,17 +667,17 @@ rotateZ facing piecePos =
 
 collisionByBorderLeft : Position -> Bool
 collisionByBorderLeft pos =
-    fst pos <= 1
+    Tuple.first pos <= 1
 
 
 collisionByBorderRight : Int -> Position -> Bool
 collisionByBorderRight rightBorder pos =
-    fst pos >= rightBorder
+    Tuple.first pos >= rightBorder
 
 
 collisionByBorder : Int -> Position -> Bool
 collisionByBorder maxPos pos =
-    snd pos == maxPos
+    Tuple.second pos == maxPos
 
 
 collisionByOccupied : Position -> Board -> Bool
@@ -686,9 +685,9 @@ collisionByOccupied pos board =
     board |> Dict.member pos
 
 
-main : Program Never
+main : Program Never Model Msg
 main =
-    Html.App.program
+    Html.program
         { init = init
         , view = view
         , update = update

@@ -92,7 +92,7 @@ squareStyle : Position -> PositionProperty -> List ( String, String )
 squareStyle pos posPro =
     let
         ( x, y ) =
-            ( Basics.max 1 <| fst pos, Basics.max 1 <| snd pos )
+            ( Basics.max 1 <| Tuple.first pos, Basics.max 1 <| Tuple.second pos )
 
         blockSize =
             18
